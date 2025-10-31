@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Mauermeister</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #f0f0f0; }
+        canvas { display: block; background: #d0e0ff; margin: 0 auto; }
+        #menu, #shop, #options { display: none; text-align: center; padding: 20px; }
+        #hud { position: absolute; top: 10px; left: 10px; font-size: 18px; }
+        button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>Mauermeister</h1>
+        <button onclick="startGame()">Spielen</button>
+        <button onclick="openShop()">Shop</button>
+        <button onclick="openOptions()">Optionen</button>
+    </div>
+    <div id="shop">
+        <h2>Shop</h2>
+        <p>Gold: <span id="shopGold">0</span></p>
+        <button onclick="buyWeapon(1)">Armbrust (100 Gold)</button>
+        <button onclick="buyWeapon(2)">Kanone (300 Gold)</button>
+        <button onclick="backToMenu()">Zurück</button>
+    </div>
+    <div id="options">
+        <h2>Optionen</h2>
+        <button onclick="resetProgress()">Fortschritt zurücksetzen</button>
+        <button onclick="backToMenu()">Zurück</button>
+    </div>
+    <div id="hud">Gold: <span id="gold">0</span> | Level: <span id="level">1</span></div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const hud = document.getElementById('hud');
+        const menu = document.getElementById('menu');
+        const shop = document.getElementById('shop');
+        const options = document.getElementById('options');
+        const goldDisplay = document.getElementById('gold');
+        const levelDisplay = document.getElementById('level');
+        const shopGoldDisplay = document.getElementById('shopGold');
+
+        let gold = parseInt(localStorage.getItem('gold')) || 0;
+        let level = parseInt(localStorage.getItem('level')) || 1;
+        let weaponLevel = parseInt(localStorage.getItem('weaponLevel')) || 0;
+        let enemies = [];
+        let gameRunning = false;
+
+        function showMenu() {
+            menu.style.display = 'block';
+            shop.style.display = 'none';
+            options.style.display = 'none';
+            canvas.style.display = 'none';
+            hud.style.display = 'none';
+        }
+
+        function backToMenu() {
+            showMenu();
+        }
+
+        function openShop() {
+            menu.style.display = 'none';
+            shop.style.display = 'block';
+            shopGoldDisplay.textContent = gold;
+        }
+
+        function openOptions() {
+            menu.style.display = 'none';
+            options.style.display = 'block';
+        }
+
+        function resetProgress() {
+            localStorage.clear();
+            gold = 0;
+            level = 1;
+            weaponLevel = 0;
+            alert("Fortschritt zurückgesetzt.");
+        }
+
+        function buyWeapon(levelRequired) {
+            const costs = [0, 100, 300];
+            if (gold >= costs[levelRequired]) {
+                weaponLevel = levelRequired;
+                gold -= costs[levelRequired];
+                updateHUD();
+                localStorage.setItem('gold', gold);
+                localStorage.setItem('weaponLevel', weaponLevel);
+                alert("Waffe gekauft!");
+            } else {
+                alert("Nicht genug Gold!");
+            }
+        }
+
+        function startGame() {
+            menu.style.display = 'none';
+            canvas.style.display = 'block';
+            hud.style.display = 'block';
+            gameRunning = true;
+            enemies = [];
+            spawnEnemies();
+            updateHUD();
+            gameLoop();
+        }
+
+        function updateHUD() {
+            goldDisplay.textContent = gold;
+            levelDisplay.textContent = level;
+        }
+
+        function spawnEnemies() {
+            const count = level + 2;
+            for (let i = 0; i < count; i++) {
+                enemies.push({
+                    x: Math.random() * (canvas.width - 30),
+                    y: canvas.height,
+                    width: 30,
+                    height: 30,
+                    speed: 1 + level * 0.2
+                });
+            }
+        }
+
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (mouseX >= enemy.x && mouseX <= enemy.x + enemy.width &&
+                    mouseY >= enemy.y && mouseY <= enemy.y + enemy.height) {
+                    enemies.splice(i, 1);
+                    gold += 5 + weaponLevel * 5;
+                    updateHUD();
+                    localStorage.setItem('gold', gold);
+                    break;
+                }
+            }
+        });
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw wall
+            ctx.fillStyle = '#888';
+            ctx.fillRect(0, 0, canvas.width, 50);
+
+            // Draw enemies
+            ctx.fillStyle = '#c00';
+            enemies.forEach(enemy => {
+                enemy.y -= enemy.speed;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+
+            // Check for end of wave
+            if (enemies.length === 0) {
+                level++;
+                localStorage.setItem('level', level);
+                spawnEnemies();
+                updateHUD();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        showMenu();
+    </script>
+</body>
+</html>
